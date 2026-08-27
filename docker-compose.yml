@@ -1,0 +1,8 @@
+services:
+  admin:
+    image: ${DOCKERHUB_USERNAME}/meditation-admin:latest
+    build: .
+    container_name: meditation_admin
+    ports:
+      - "5173:80"
+    restart: always

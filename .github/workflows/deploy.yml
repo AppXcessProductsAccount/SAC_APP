@@ -1,0 +1,100 @@
+name: Deploy Admin to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: meditation-admin
+  DOCKER_VERSION: latest
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deploy directory on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+          "mkdir -p /home/${{ secrets.EC2_USER }}/meditation-admin"
+
+      - name: Upload docker-compose.yml to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no docker-compose.yml \
+          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/meditation-admin/docker-compose.yml
+
+      - name: Deploy to EC2 using docker-compose
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << DEPLOY_SCRIPT
+            set -e
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            cd /home/${{ secrets.EC2_USER }}/meditation-admin
+            
+            # Export variables for docker-compose
+            export DOCKERHUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'
+            export VITE_API_URL='${{ secrets.NEXT_PUBLIC_API_URL }}'
+            
+            echo "🧹 Cleaning up existing containers and freeing ports"
+            docker compose stop admin || true
+            docker compose rm -f admin || true
+            
+            # Kill processes using the admin port (5173)
+            PID=\$(sudo lsof -ti:5173 2>/dev/null || true)
+            if [ ! -z "\$PID" ]; then
+              echo "⚠️ Port 5173 is in use by process \$PID, killing it..."
+              sudo kill -9 \$PID 2>/dev/null || true
+            fi
+            
+            echo "⬇️ Pulling latest image"
+            docker compose pull admin
+            
+            echo "🚀 Starting admin service"
+            docker compose up -d admin
+            
+            echo "📊 Container status:"
+            docker compose ps
+          DEPLOY_SCRIPT
+
+      - name: Verify deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << VERIFY_SCRIPT
+            cd /home/${{ secrets.EC2_USER }}/meditation-admin
+            if docker compose ps | grep -q admin; then
+              echo "✅ Admin running OK"
+            else
+              echo "❌ Admin FAILED"
+              exit 1
+            fi
+          VERIFY_SCRIPT
