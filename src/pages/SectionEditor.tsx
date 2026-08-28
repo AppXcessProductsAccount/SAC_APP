@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, getApiBaseUrl } from "../lib/api";
 import Toast, { type ToastState } from "../components/Toast";
+import { SECTION_DEFAULTS } from "../lib/sectionDefaults";
 
 /* Fields that hold prose. They get a <textarea> no matter how short the current
    value is — an <input type="text"> silently swallows the Enter key, so on a
@@ -24,8 +25,45 @@ const isProseField = (label: string, value: string) => {
     );
 };
 
+/* ---------------------------------------------------------------------------
+ * Loading a section's website defaults.
+ *
+ * This editor has no schema: it walks the stored JSON and draws one field per
+ * key it finds. That is what lets it edit every section without knowing about
+ * any of them - and also why a section that was never seeded is a dead end. The
+ * home hero was the case that bit. The website renders `content.slides` (see
+ * HeroClassic.tsx) and falls back to four slides hardcoded in that component
+ * when the key is absent; the stored JSON only ever had `title` and `subtitle`,
+ * so the admin drew two boxes nothing reads, offered no way to make a slide,
+ * and the four slides actually on the page were editable nowhere.
+ *
+ * SECTION_DEFAULTS carries those fallbacks (generated from the frontend's own
+ * seed file) so the editor can write them into the section and make them real.
+ * ------------------------------------------------------------------------- */
+
+/** One entry in a repeatable list - a slide, a testimonial, an FAQ. */
+type BlockItem = Record<string, unknown>;
+
+/**
+ * A blank item for a list, taken from the shape of the section's own default.
+ *
+ * Used when the last item is deleted: the array editor builds a new item by
+ * cloning the first one, and an empty array has nothing to clone. Without this
+ * it added a bare "" - a lone text box where a slide should be, with no way
+ * back except the JSON tab.
+ */
+const blankItemFor = (sectionId: string, key: string): BlockItem | "" => {
+    const template = SECTION_DEFAULTS[sectionId.trim().toLowerCase()]?.content?.[key];
+    if (!Array.isArray(template) || !template.length || typeof template[0] !== "object") return "";
+    const blank: BlockItem = {};
+    Object.entries(template[0] as BlockItem).forEach(([field, value]) => {
+        blank[field] = typeof value === "number" ? 0 : "";
+    });
+    return blank;
+};
+
 // Helper to render dynamic form fields
-const DynamicField = ({ label, value, onChange, path }: { label: string, value: any, onChange: (path: string, val: any) => void, path: string }) => {
+const DynamicField = ({ label, value, onChange, path, sectionId }: { label: string, value: any, onChange: (path: string, val: any) => void, path: string, sectionId: string }) => {
     const [uploading, setUploading] = useState(false);
 
     /* Latched: once a field renders as a textarea it stays one. Deciding purely on
@@ -159,7 +197,14 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
                     <button 
                         type="button"
                         onClick={() => {
-                            const newItem = value.length > 0 ? JSON.parse(JSON.stringify(value[0])) : "";
+                            /* Cloning item[0] is what makes this work for any list
+                               without a schema. An EMPTY list has nothing to clone,
+                               and used to add "" — a bare text box where a slide
+                               should be, and no way back except the JSON tab. A
+                               known key rebuilds its proper shape instead. */
+                            const newItem = value.length > 0
+                                ? JSON.parse(JSON.stringify(value[0]))
+                                : blankItemFor(sectionId, label.trim());
                             
                             // Clear values for new item if it's an object
                             const clearValues = (obj: any) => {
@@ -177,7 +222,7 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
                         }}
                         className="text-xs font-bold text-blue-500 hover:text-blue-700 transition-colors"
                     >
-                        + Add Item
+                        + Add {label.replace(/_/g, " ").replace(/s$/, "") || "item"}
                     </button>
                 </div>
                 <div className="space-y-6">
@@ -196,7 +241,7 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
-                            <RecursiveFields obj={item} onChange={onChange} path={`${path}[${index}]`} />
+                            <RecursiveFields obj={item} onChange={onChange} path={`${path}[${index}]`} sectionId={sectionId} />
                         </div>
                     ))}
                 </div>
@@ -208,7 +253,7 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
         return (
             <div className="space-y-4 border-l-2 border-blue-50 pl-4 py-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label.replace(/_/g, ' ')}</label>
-                <RecursiveFields obj={value} onChange={onChange} path={path} />
+                <RecursiveFields obj={value} onChange={onChange} path={path} sectionId={sectionId} />
             </div>
         );
     }
@@ -216,7 +261,7 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
     return null;
 };
 
-const RecursiveFields = ({ obj, onChange, path }: { obj: any, onChange: (path: string, val: any) => void, path: string }) => {
+const RecursiveFields = ({ obj, onChange, path, sectionId }: { obj: any, onChange: (path: string, val: any) => void, path: string, sectionId: string }) => {
     // If obj is a primitive value (like in an array of strings), render it directly as a field
     if (typeof obj !== "object" || obj === null) {
         return (
@@ -225,6 +270,7 @@ const RecursiveFields = ({ obj, onChange, path }: { obj: any, onChange: (path: s
                 value={obj} 
                 onChange={onChange} 
                 path={path} 
+            sectionId={sectionId}
             />
         );
     }
@@ -238,6 +284,7 @@ const RecursiveFields = ({ obj, onChange, path }: { obj: any, onChange: (path: s
                     value={obj[key]} 
                     onChange={onChange} 
                     path={path ? `${path}.${key}` : key} 
+                sectionId={sectionId}
                 />
             ))}
         </div>
@@ -398,6 +445,40 @@ export default function SectionEditor() {
         }
     })();
 
+    /* What this section is supposed to hold, and what it is actually missing. */
+    const sectionDefault = SECTION_DEFAULTS[sectionId.trim().toLowerCase()];
+    const missingKeys = sectionDefault
+        ? Object.keys(sectionDefault.content).filter((key) => {
+              const current = parsedContentForUI?.[key];
+              /* An empty array counts as missing: a slides list somebody
+                 emptied is the same dead end as one that never existed. */
+              if (Array.isArray(current)) return current.length === 0;
+              return current === undefined || current === null || current === "";
+          })
+        : [];
+    const droppableKeys = (sectionDefault?.drops ?? [])
+        .filter((key) => parsedContentForUI && key in parsedContentForUI);
+
+    /** How many items each missing list would bring, for the panel's wording. */
+    const describeMissing = (key: string) => {
+        const value = sectionDefault?.content?.[key];
+        return Array.isArray(value) ? `${key} (${value.length})` : key;
+    };
+
+    const loadDefaults = () => {
+        if (!sectionDefault) return;
+        const current = parsedContentForUI ?? {};
+        /* Missing keys only. Anything already written is left exactly as it is,
+           so this is safe to press on a section somebody has worked on - it
+           fills the gaps rather than resetting the section. */
+        const next: Record<string, unknown> = { ...current };
+        missingKeys.forEach((key) => {
+            next[key] = JSON.parse(JSON.stringify(sectionDefault.content[key]));
+        });
+        droppableKeys.forEach((key) => delete next[key]);
+        setContent(JSON.stringify(next, null, 2));
+    };
+
     return (
         <div className="max-w-[1400px] mx-auto">
             <div className="mb-8 flex items-center justify-between">
@@ -542,7 +623,49 @@ export default function SectionEditor() {
                         ) : (
                             <div className="space-y-6 animate-in fade-in duration-500">
                                 {parsedContentForUI ? (
-                                    <RecursiveFields obj={parsedContentForUI} onChange={updateNestedValue} path="" />
+                                    <>
+                                        <RecursiveFields obj={parsedContentForUI} onChange={updateNestedValue} path="" sectionId={sectionId} />
+
+                                        {/* Content the website is showing from its own
+                                            built-in fallbacks, which is therefore on the
+                                            page and editable nowhere. One press turns it
+                                            into real content in this form. */}
+                                        {(missingKeys.length > 0 || droppableKeys.length > 0) && (
+                                            <div className="p-5 rounded-2xl border border-dashed border-blue-200 bg-blue-50/40 space-y-3">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-[#101848]">
+                                                        {missingKeys.length > 0
+                                                            ? `${sectionDefault?.name ?? "This section"} is using the website's built-in content`
+                                                            : "This section has fields the website does not read"}
+                                                    </h4>
+                                                    <p className="text-xs text-gray-500 mt-1 max-w-xl leading-relaxed">
+                                                        {missingKeys.length > 0 && (
+                                                            <>
+                                                                Load it here and it becomes editable - images included. Adds{" "}
+                                                                <span className="font-semibold text-gray-700">{missingKeys.map(describeMissing).join(", ")}</span>.
+                                                                Nothing you have already filled in is changed.
+                                                            </>
+                                                        )}
+                                                        {droppableKeys.length > 0 && (
+                                                            <>
+                                                                {missingKeys.length > 0 ? " " : ""}
+                                                                Removes <span className="font-semibold text-gray-700">{droppableKeys.join(", ")}</span>,
+                                                                which nothing on the website reads.
+                                                            </>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={loadDefaults}
+                                                    className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-600/20 transition-all active:scale-95"
+                                                >
+                                                    Load website content
+                                                </button>
+                                                <p className="text-[10px] text-gray-400">Nothing is saved until you press Save below.</p>
+                                            </div>
+                                        )}
+                                    </>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-4">
                                         <div className="w-16 h-16 bg-red-50 text-red-400 rounded-full flex items-center justify-center">
