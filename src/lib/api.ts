@@ -5,51 +5,31 @@ import {
     setAccessToken,
 } from "./session";
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
-
 const stripTrailingSlash = (url: string) => url.replace(/\/+$/, "");
 
 /**
- * The browser blocks any http:// request made from an https:// page (mixed content),
- * so an API URL configured or default as http:// must be upgraded.
- * Loopback hosts are exempt: they are trustworthy origins and are never blocked in local dev.
+ * The API origin, hardcoded on purpose.
+ *
+ * This used to be read from VITE_API_URL. The deploy pipeline supplied that from a
+ * stale secret holding http://34.229.234.60:8000, which got baked into the bundle and
+ * the browser blocked every call from the https:// admin app as mixed content.
+ * A constant cannot be misconfigured by a build arg, a secret, or a .env file.
  */
-const upgradeInsecureUrl = (url: string) => {
-    if (typeof window === "undefined") return url;
-    if (window.location.protocol !== "https:") return url;
-
-    if (url.startsWith("https://")) return url;
-
-    if (url.startsWith("http://")) {
-        const rest = url.slice("http://".length);
-        const hostWithPort = rest.split("/")[0];
-        const host = hostWithPort.split(":")[0];
-
-        if (LOCAL_HOSTS.has(host)) return url;
-
-        if (host === "34.229.234.60") {
-            const path = rest.slice(hostWithPort.length);
-            return `https://api.selfawarenesscentre.org${path}`;
-        }
-        return `https://${rest}`;
-    }
-
-    return url;
-};
+export const PRODUCTION_API_URL = "https://api.selfawarenesscentre.org";
 
 export const getApiBaseUrl = () => {
-    const envUrl = import.meta.env.VITE_API_URL;
-    if (envUrl && envUrl.trim().length > 0) {
-        return upgradeInsecureUrl(stripTrailingSlash(envUrl.trim()));
+    /* import.meta.env.DEV is replaced with the literal false in a production build, so
+       this whole branch - and the VITE_API_URL value with it - is dropped from the
+       bundle. A deployed build can only ever talk to PRODUCTION_API_URL, whatever the
+       CI secret, build arg or .env file happens to hold. */
+    if (import.meta.env.DEV) {
+        const envUrl = import.meta.env.VITE_API_URL;
+        if (envUrl && envUrl.trim().length > 0) {
+            return stripTrailingSlash(envUrl.trim());
+        }
     }
 
-    if (typeof window !== "undefined") {
-        if (window.location.protocol === "https:") {
-            return "https://api.selfawarenesscentre.org";
-        }
-        return `${window.location.protocol}//${window.location.hostname}:8000`;
-    }
-    return "http://127.0.0.1:8000";
+    return PRODUCTION_API_URL;
 };
 
 export const API_URL = getApiBaseUrl();

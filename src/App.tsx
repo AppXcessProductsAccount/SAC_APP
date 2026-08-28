@@ -86,6 +86,10 @@ function App() {
 
           <Route path="/settings" element={<Settings />} />
         </Route>
+
+        {/* Unknown path: send it to the dashboard, which the guard above bounces
+            to /login when there is no session. Without this the shell renders blank. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router> 
   );
