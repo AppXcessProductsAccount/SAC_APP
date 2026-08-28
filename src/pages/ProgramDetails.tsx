@@ -33,6 +33,21 @@ interface Registration {
     created_at: string;
 }
 
+/** Only the user fields the export sheet needs; the endpoint returns more. */
+interface ExportUser {
+    id: string;
+    full_name?: string;
+    email?: string;
+    phone_number?: string;
+    gender?: string;
+    age?: number;
+    occupation?: string;
+    address?: string;
+}
+
+/** One sheet row. Values stay typed so numbers and dates reach Excel as such. */
+type ExportRow = Record<string, string | number | Date>;
+
 interface ProgramDetails {
     id: string;
     city: string;
@@ -52,6 +67,7 @@ export default function ProgramDetails() {
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
     const [fetchingUser, setFetchingUser] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -83,6 +99,107 @@ export default function ProgramDetails() {
             alert("Failed to load user profile");
         } finally {
             setFetchingUser(false);
+        }
+    };
+
+    /* A date Excel can sort and filter, not a string that looks like one. An
+       unparseable value is passed through as text rather than becoming
+       "Invalid Date" in the sheet. */
+    const asDate = (value?: string) => {
+        if (!value) return "";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date;
+    };
+
+    const handleExport = async () => {
+        if (!program || program.registrations.length === 0) return;
+
+        setExporting(true);
+        try {
+            /* Loaded on the press, not with the page. The workbook writer is
+               ~430kB minified - a third of the whole admin bundle - and only
+               this one button ever needs it, so it stays out of the initial
+               download for every screen that does not export. */
+            const XLSX = await import("xlsx");
+            /* The table shows a user id because a name costs a lookup. An export
+               of ids is not a register anybody can use, so names, emails and
+               phone numbers are joined in here - one request for the whole user
+               list, indexed by id, rather than one request per registrant. A
+               failure is not fatal: the sheet is still worth having without the
+               contact columns filled in. */
+            const byUserId = new Map<string, ExportUser>();
+            try {
+                const users = (await api.admin.users.list()) as ExportUser[] | null;
+                for (const user of users ?? []) byUserId.set(String(user.id), user);
+            } catch {
+                console.warn("Export: user lookup failed, writing registration fields only");
+            }
+
+            const rows: ExportRow[] = program.registrations.map((reg) => {
+                const user = byUserId.get(String(reg.user_id));
+                return {
+                    "Name": user?.full_name ?? "",
+                    "Email": user?.email ?? "",
+                    "Phone": user?.phone_number ?? "",
+                    "Gender": user?.gender ?? "",
+                    "Age": user?.age ?? "",
+                    "Occupation": user?.occupation ?? "",
+                    "Address": user?.address ?? "",
+                    "NRIC (Last 4)": reg.nric_last_4 ?? "",
+                    "Preferred Language": reg.preferred_language ?? "",
+                    "Meal Preference": reg.meal_preference ?? "",
+                    "Health Issues": reg.health_issues ?? "",
+                    "Emergency Contact": reg.emergency_contact_name ?? "",
+                    "Emergency Phone": reg.emergency_contact_phone ?? "",
+                    "Emergency Relation": reg.emergency_contact_relation ?? "",
+                    "Referred By": reg.referred_by ?? "",
+                    "Introducer Name": reg.introducer_name ?? "",
+                    "Introducer Phone": reg.introducer_phone ?? "",
+                    "Discovery Source": reg.discovery_source ?? "",
+                    "Status": reg.status ?? "",
+                    "Payment Status": reg.payment_status ?? "",
+                    "Currency": reg.currency ?? program.currency ?? "",
+                    /* Numbers, not pre-formatted strings, so the columns total
+                       in Excel. */
+                    "Amount Paid": reg.amount_paid ?? 0,
+                    "Balance": reg.balance_amount ?? 0,
+                    "Due Date": asDate(reg.due_date),
+                    "Applied": asDate(reg.created_at),
+                    "HitPay Payment ID": reg.hitpay_payment_id ?? "",
+                    "Payment Request ID": reg.payment_request_id ?? "",
+                    "Registration ID": reg.id ?? "",
+                    "User ID": reg.user_id ?? "",
+                };
+            });
+
+            const sheet = XLSX.utils.json_to_sheet(rows, { cellDates: true });
+            /* Widths from the longest value in each column, so the sheet opens
+               readable instead of as a wall of ####. Capped so a long address
+               cannot push the payment columns off the screen. */
+            const headers = Object.keys(rows[0]);
+            sheet["!cols"] = headers.map((header) => ({
+                wch: Math.min(
+                    40,
+                    Math.max(header.length + 2, ...rows.map((row) => String(row[header] ?? "").length + 2))
+                ),
+            }));
+            sheet["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: headers.length - 1, r: rows.length } }) };
+            sheet["!freeze"] = "A2";
+
+            const book = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(book, sheet, "Registrants");
+
+            /* Excel rejects \ / ? * [ ] : in a filename, and the city or class id
+               is free text from the admin, so anything outside a safe set goes. */
+            const slug = (value: string) => (value || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
+            const stamp = new Date().toISOString().slice(0, 10);
+            const name = ["registrants", slug(program.class_id), slug(program.city), stamp].filter(Boolean).join("-");
+            XLSX.writeFile(book, `${name}.xlsx`);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to export the registrant list");
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -130,9 +247,17 @@ export default function ProgramDetails() {
             <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-8 border-b border-gray-100 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-[#101848]">Registrant List</h2>
-                    <button className="text-sm font-bold text-black hover:text-gray-600 transition-colors flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                        <Download className="w-4 h-4" />
-                        Export CSV
+                    {/* This button had no onClick at all - it looked like an export
+                        and did nothing when pressed. Disabled on an empty program
+                        rather than handing back a sheet with only headings. */}
+                    <button
+                        onClick={handleExport}
+                        disabled={exporting || program.registrations.length === 0}
+                        title={program.registrations.length === 0 ? "No registrants to export" : "Download as an Excel workbook"}
+                        className="text-sm font-bold text-black hover:text-gray-600 transition-colors flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-black"
+                    >
+                        <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+                        {exporting ? "Preparing..." : "Export Excel"}
                     </button>
                 </div>
 
