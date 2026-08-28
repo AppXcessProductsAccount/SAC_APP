@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, getApiBaseUrl } from "../lib/api";
 import Toast, { type ToastState } from "../components/Toast";
 
 /* Fields that hold prose. They get a <textarea> no matter how short the current
@@ -53,7 +53,7 @@ const DynamicField = ({ label, value, onChange, path }: { label: string, value: 
     };
 
     if (isImageField && typeof value === "string") {
-        const fullUrl = value.startsWith("/") ? `${import.meta.env.VITE_API_URL}${value}` : value;
+        const fullUrl = value.startsWith("/") ? `${getApiBaseUrl()}${value}` : value;
         return (
             <div className="space-y-3 p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label.replace(/_/g, ' ')}</label>
@@ -635,7 +635,7 @@ export default function SectionEditor() {
                                     </div>
                                 </div>
                                 <div className="aspect-video w-full rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
-                                    <img src={uploadedUrl.startsWith("/") ? `${import.meta.env.VITE_API_URL}${uploadedUrl}` : uploadedUrl} alt="Preview" className="w-full h-full object-cover" />
+                                    <img src={uploadedUrl.startsWith("/") ? `${getApiBaseUrl()}${uploadedUrl}` : uploadedUrl} alt="Preview" className="w-full h-full object-cover" />
                                 </div>
                             </div>
                         )}

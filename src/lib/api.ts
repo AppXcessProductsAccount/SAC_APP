@@ -5,7 +5,54 @@ import {
     setAccessToken,
 } from "./session";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+const stripTrailingSlash = (url: string) => url.replace(/\/+$/, "");
+
+/**
+ * The browser blocks any http:// request made from an https:// page (mixed content),
+ * so an API URL configured or default as http:// must be upgraded.
+ * Loopback hosts are exempt: they are trustworthy origins and are never blocked in local dev.
+ */
+const upgradeInsecureUrl = (url: string) => {
+    if (typeof window === "undefined") return url;
+    if (window.location.protocol !== "https:") return url;
+
+    if (url.startsWith("https://")) return url;
+
+    if (url.startsWith("http://")) {
+        const rest = url.slice("http://".length);
+        const hostWithPort = rest.split("/")[0];
+        const host = hostWithPort.split(":")[0];
+
+        if (LOCAL_HOSTS.has(host)) return url;
+
+        if (host === "34.229.234.60") {
+            const path = rest.slice(hostWithPort.length);
+            return `https://api.selfawarenesscentre.org${path}`;
+        }
+        return `https://${rest}`;
+    }
+
+    return url;
+};
+
+export const getApiBaseUrl = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl && envUrl.trim().length > 0) {
+        return upgradeInsecureUrl(stripTrailingSlash(envUrl.trim()));
+    }
+
+    if (typeof window !== "undefined") {
+        if (window.location.protocol === "https:") {
+            return "https://api.selfawarenesscentre.org";
+        }
+        return `${window.location.protocol}//${window.location.hostname}:8000`;
+    }
+    return "http://127.0.0.1:8000";
+};
+
+export const API_URL = getApiBaseUrl();
 
 const getHeaders = (isMultipart = false) => {
     const token = getAccessToken();
