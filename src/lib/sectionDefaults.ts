@@ -84,7 +84,10 @@ export const SECTION_DEFAULTS: Record<string, SectionDefault> = {
     "section2": {
         "name": "7 Day Transformational Journey",
         "content": {
-            "background_image_url": "/testimonial.png",
+            /* This section paints no section-wide backdrop; the one image it has
+               is the meditation card's, and this is the field that drives it.
+               Hence the meditation plate here rather than the marble one. */
+            "background_image_url": "/event_meditation.png",
             "title": "7 Day Transformational Journey",
             "text": "A life-changing program designed to help you discover your inner peace and spiritual potential. Watch our promo video to learn more about the journey that awaits you.",
             "youtube_url": "https://www.youtube.com/embed/sGtx4XfL76I",
@@ -94,9 +97,12 @@ export const SECTION_DEFAULTS: Record<string, SectionDefault> = {
                 "role": "7DTJ Graduate"
             },
             "group_meditation": {
+                /* No `image_url` here on purpose. The card's picture comes from
+                   the section's `background_image_url` above, so offering a
+                   second image field would let "Load website content" write a
+                   default that outranks an editor's upload. */
                 "title": "Group Meditation",
-                "description": "Join our weekly sessions to experience the collective energy of collective consciousness and deep silence.",
-                "image_url": "/event_meditation.png"
+                "description": "Join our weekly sessions to experience the collective energy of collective consciousness and deep silence."
             }
         }
     },
