@@ -62,6 +62,53 @@ const blankItemFor = (sectionId: string, key: string): BlockItem | "" => {
     return blank;
 };
 
+/** Read `a.b.c` out of a nested object, tolerating a missing branch. */
+const valueAtPath = (obj: any, path: string) =>
+    path.split(".").reduce((node, key) => (node === null || node === undefined ? node : node[key]), obj);
+
+/** Write `a.b.c`, cloning each object on the way down so `obj` is never mutated. */
+const setAtPath = (obj: Record<string, any>, path: string, value: unknown) => {
+    const parts = path.split(".");
+    let node = obj;
+    for (const part of parts.slice(0, -1)) {
+        node[part] = { ...(node[part] ?? {}) };
+        node = node[part];
+    }
+    node[parts[parts.length - 1]] = value;
+};
+
+/**
+ * Every field the website reads that this section has not got, as dot-paths.
+ *
+ * It recurses because a section can hold every top-level key and still be
+ * missing a field one level down. section2 was exactly that: it had a
+ * `group_meditation` object with a title and a description but no `image_url`,
+ * so the meditation card's picture was visible on the site and editable
+ * nowhere, and the "Load website content" panel never appeared to offer it.
+ */
+const collectMissingPaths = (defaults: any, current: any, prefix = ""): string[] => {
+    if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) return [];
+    return Object.keys(defaults).flatMap((key) => {
+        const path = prefix ? `${prefix}.${key}` : key;
+        const want = defaults[key];
+        const have = current === null || current === undefined ? undefined : current[key];
+
+        /* An empty array counts as missing: a slides list somebody emptied is
+           the same dead end as one that never existed. Rows inside it are the
+           editor's own content, so we never look inside them. */
+        if (Array.isArray(want)) return Array.isArray(have) && have.length > 0 ? [] : [path];
+
+        if (want && typeof want === "object") {
+            /* A whole object that is absent is offered as one item rather than
+               as a list of every leaf inside it. */
+            if (!have || typeof have !== "object" || Array.isArray(have)) return [path];
+            return collectMissingPaths(want, have, path);
+        }
+
+        return have === undefined || have === null || have === "" ? [path] : [];
+    });
+};
+
 // Helper to render dynamic form fields
 const DynamicField = ({ label, value, onChange, path, sectionId }: { label: string, value: any, onChange: (path: string, val: any) => void, path: string, sectionId: string }) => {
     const [uploading, setUploading] = useState(false);
@@ -453,21 +500,13 @@ export default function SectionEditor() {
 
     /* What this section is supposed to hold, and what it is actually missing. */
     const sectionDefault = SECTION_DEFAULTS[sectionId.trim().toLowerCase()];
-    const missingKeys = sectionDefault
-        ? Object.keys(sectionDefault.content).filter((key) => {
-              const current = parsedContentForUI?.[key];
-              /* An empty array counts as missing: a slides list somebody
-                 emptied is the same dead end as one that never existed. */
-              if (Array.isArray(current)) return current.length === 0;
-              return current === undefined || current === null || current === "";
-          })
-        : [];
+    const missingKeys = sectionDefault ? collectMissingPaths(sectionDefault.content, parsedContentForUI) : [];
     const droppableKeys = (sectionDefault?.drops ?? [])
         .filter((key) => parsedContentForUI && key in parsedContentForUI);
 
     /** How many items each missing list would bring, for the panel's wording. */
     const describeMissing = (key: string) => {
-        const value = sectionDefault?.content?.[key];
+        const value = valueAtPath(sectionDefault?.content, key);
         return Array.isArray(value) ? `${key} (${value.length})` : key;
     };
 
@@ -479,7 +518,7 @@ export default function SectionEditor() {
            fills the gaps rather than resetting the section. */
         const next: Record<string, unknown> = { ...current };
         missingKeys.forEach((key) => {
-            next[key] = JSON.parse(JSON.stringify(sectionDefault.content[key]));
+            setAtPath(next, key, JSON.parse(JSON.stringify(valueAtPath(sectionDefault.content, key))));
         });
         droppableKeys.forEach((key) => delete next[key]);
         setContent(JSON.stringify(next, null, 2));
