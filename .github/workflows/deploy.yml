@@ -9,6 +9,9 @@ on:
 env:
   DOCKER_IMAGE: meditation-admin
   DOCKER_VERSION: latest
+  # The admin app is served over https, so the API must be https too or the
+  # browser blocks every call as mixed content. Never point this at a bare IP.
+  VITE_API_URL: https://api.selfawarenesscentre.org
 
 jobs:
   build-and-deploy:
@@ -32,7 +35,7 @@ jobs:
           context: .
           push: true
           build-args: |
-            VITE_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
@@ -64,7 +67,7 @@ jobs:
             
             # Export variables for docker-compose
             export DOCKERHUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'
-            export VITE_API_URL='${{ secrets.NEXT_PUBLIC_API_URL }}'
+            export VITE_API_URL='${{ env.VITE_API_URL }}'
             
             echo "🧹 Cleaning up existing containers and freeing ports"
             docker compose stop admin || true

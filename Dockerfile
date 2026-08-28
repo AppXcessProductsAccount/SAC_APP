@@ -1,7 +1,8 @@
 # Build stage
 FROM node:20-alpine AS build
 WORKDIR /app
-ARG VITE_API_URL
+# .env is dockerignored, so this arg is the only source of the API URL at build time.
+ARG VITE_API_URL=https://api.selfawarenesscentre.org
 ENV VITE_API_URL=$VITE_API_URL
 COPY package.json ./
 RUN npm install --legacy-peer-deps
