@@ -59,9 +59,16 @@ export default function AdminLayout({
             <aside className="w-64 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col sticky top-0 h-screen z-20">
                 <div className="p-8 pb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
-                            <Layers className="w-5 h-5" />
-                        </div>
+                        {/* The mark itself, not a stand-in glyph. No plate behind
+                            it: the logo is a circle on transparency, so a black
+                            rounded square would box it in. alt is empty on purpose
+                            — the organisation name is right beside it, and a
+                            described logo would have a screen reader say it twice. */}
+                        <img
+                            src="/logo.png"
+                            alt=""
+                            className="w-10 h-10 object-contain flex-shrink-0"
+                        />
                         {/* The fallback is a neutral word, not the agency's name:
                             it shows on every install whose settings have no
                             organisation name yet, which is not the vendor's. */}
