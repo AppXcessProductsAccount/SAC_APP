@@ -227,7 +227,13 @@ const DynamicField = ({ label, value, onChange, path, sectionId }: { label: stri
                 </div>
                 <div className="space-y-6">
                     {value.map((item, index) => (
-                        <div key={index} className="relative p-4 bg-white rounded-xl border border-gray-100 shadow-sm space-y-4">
+                        /* `isolate` gives the card its own stacking context, so the
+                           remove badge's z-10 is scoped to the card instead of
+                           competing with the page chrome. Without it the badge
+                           painted over the sticky header while scrolling. A plain
+                           block comment, not {* ... *}: inside a map's parens a
+                           JSX comment is a second root element. */
+                        <div key={index} className="relative isolate p-4 bg-white rounded-xl border border-gray-100 shadow-sm space-y-4">
                             <button 
                                 type="button"
                                 onClick={() => {

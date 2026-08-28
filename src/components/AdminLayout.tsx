@@ -6,7 +6,6 @@ import {
     Calendar,
     Layers,
     LogOut,
-    Search,
     Settings,
     Mail,
     CreditCard
@@ -14,6 +13,7 @@ import {
 import { clearSession } from "../lib/session";
 import { useSettings } from "../lib/settings";
 import NotificationBell from "./NotificationBell";
+import GlobalSearch from "./GlobalSearch";
 
 export default function AdminLayout({
     children,
@@ -62,8 +62,11 @@ export default function AdminLayout({
                         <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
                             <Layers className="w-5 h-5" />
                         </div>
+                        {/* The fallback is a neutral word, not the agency's name:
+                            it shows on every install whose settings have no
+                            organisation name yet, which is not the vendor's. */}
                         <h2 className="text-xl font-bold tracking-tight text-black truncate">
-                            {settings.organisation_name || "Appxcess"}
+                            {settings.organisation_name || "Console"}
                         </h2>
                     </div>
                 </div>
@@ -105,16 +108,14 @@ export default function AdminLayout({
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-12 sticky top-0 z-10">
+                {/* z-30, not z-10. Page content routinely carries z-10 of its own
+                    (the delete badge on a CMS list item, for one), and on equal
+                    z-index the later element in the DOM wins - so scrolling a
+                    section editor sent a lone red ✕ floating across the header.
+                    The header outranks page content and stays under the modals. */}
+                <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-12 sticky top-0 z-30">
                     <div className="flex items-center flex-1 max-w-md">
-                        <div className="relative w-full group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black group-focus-within:text-black transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search everything..."
-                                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-transparent rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-black/5 focus:border-gray-200 outline-none transition-all"
-                            />
-                        </div>
+                        <GlobalSearch />
                     </div>
 
                     <div className="flex items-center gap-6">

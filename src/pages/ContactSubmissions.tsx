@@ -26,7 +26,11 @@ export default function ContactSubmissions() {
     const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [searchTerm, setSearchTerm] = useState("");
+    /* Seeded from ?q= — see the note in UsersList; enquiries have no detail
+       route either, so the header search hands the term to this page's filter. */
+    const [searchTerm, setSearchTerm] = useState(
+        () => new URLSearchParams(window.location.search).get("q") ?? "",
+    );
     const [selectedSubmission, setSelectedSubmission] = useState<ContactSubmission | null>(null);
 
     useEffect(() => {

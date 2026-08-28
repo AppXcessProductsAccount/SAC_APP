@@ -32,7 +32,12 @@ interface User {
 export default function UsersList() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
+    /* Seeded from ?q=, which is how the header's global search hands a term
+       over: People have no detail route, so a hit navigates here and this page
+       does the filtering it already knows how to do. */
+    const [searchQuery, setSearchQuery] = useState(
+        () => new URLSearchParams(window.location.search).get("q") ?? "",
+    );
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [notice, setNotice] = useState("");
