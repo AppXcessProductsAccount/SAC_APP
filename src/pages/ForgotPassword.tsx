@@ -96,9 +96,9 @@ export default function ForgotPassword() {
     };
 
     return (
-        <div className="min-h-screen flex bg-white overflow-hidden">
-            <div className="w-full lg:w-[450px] flex flex-col justify-center px-8 md:px-16 lg:px-12 bg-white relative z-10 shadow-2xl">
-                <div className="max-w-md w-full mx-auto">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+            <div className="w-full max-w-md">
+                <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 px-8 py-10 sm:px-10">
                     <Link
                         to="/login"
                         className="inline-flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-[#101848] transition-colors mb-8"
@@ -107,10 +107,12 @@ export default function ForgotPassword() {
                         Back to sign in
                     </Link>
 
-                    <div className="mb-10">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#101848] text-white font-serif font-bold text-2xl mb-6 shadow-lg shadow-[#101848]/20">
-                            M
-                        </div>
+                    <div className="mb-10 text-center">
+                        <img
+                            src="/logo.png"
+                            alt="Self Awareness Centre"
+                            className="h-20 w-auto mx-auto mb-6"
+                        />
                         <h1 className="text-4xl font-serif font-bold text-[#101848] mb-2">
                             {step === "request" ? "Forgot password" : "Check your email"}
                         </h1>
@@ -251,23 +253,6 @@ export default function ForgotPassword() {
                             </div>
                         </form>
                     )}
-                </div>
-            </div>
-
-            <div className="hidden lg:flex flex-1 relative bg-[#101848] items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-400 blur-[120px]" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-600 blur-[120px]" />
-                </div>
-
-                <div className="relative z-10 text-center px-20">
-                    <h2 className="text-5xl font-serif font-bold text-white mb-6 leading-tight">
-                        Locked out happens.
-                    </h2>
-                    <p className="text-xl text-white/60 leading-relaxed max-w-xl mx-auto">
-                        A one-time code puts you back in. Every other session signs out when the
-                        password changes.
-                    </p>
                 </div>
             </div>
         </div>

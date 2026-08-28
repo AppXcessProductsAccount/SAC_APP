@@ -44,13 +44,16 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex bg-white overflow-hidden">
-            {/* Left Side: Login Form */}
-            <div className="w-full lg:w-[450px] flex flex-col justify-center px-8 md:px-16 lg:px-12 bg-white relative z-10 shadow-2xl">
-                <div className="max-w-md w-full mx-auto">
-                    <div className="mb-12">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#101848] text-white font-serif font-bold text-2xl mb-6 shadow-lg shadow-[#101848]/20">M</div>
-                        <h1 className="text-4xl font-serif font-bold text-[#101848] mb-2">Welcome Back</h1>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+            <div className="w-full max-w-md">
+                <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 px-8 py-10 sm:px-10">
+                    <div className="mb-10 text-center">
+                        <img
+                            src="/logo.png"
+                            alt="Self Awareness Centre"
+                            className="h-20 w-auto mx-auto mb-6"
+                        />
+                        <h1 className="text-3xl font-serif font-bold text-[#101848] mb-2">Welcome Back</h1>
                         <p className="text-gray-500">Sign in to manage your meditation centre.</p>
                     </div>
 
@@ -66,7 +69,7 @@ export default function Login() {
                                 {error}
                             </div>
                         )}
-                        
+
                         <div className="space-y-2">
                             <label className="block text-sm font-bold text-[#101848] uppercase tracking-wider ml-1">Email Address</label>
                             <input
@@ -115,35 +118,7 @@ export default function Login() {
                                 </span>
                             ) : "Sign In"}
                         </button>
-                        
-                        <div className="pt-6 text-center">
-                            <p className="text-sm text-gray-400">
-                                Need technical help? <button type="button" className="text-[#101848] font-bold hover:underline">Contact Support</button>
-                            </p>
-                        </div>
                     </form>
-                </div>
-            </div>
-
-            {/* Right Side: Decorative/Brand Section */}
-            <div className="hidden lg:flex flex-1 relative bg-[#101848] items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-400 blur-[120px] animate-pulse"></div>
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-600 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
-                </div>
-                
-                <div className="relative z-10 text-center px-20">
-                    <h2 className="text-5xl font-serif font-bold text-white mb-6 leading-tight">Mastering Inner Peace through Technology.</h2>
-                    <p className="text-xl text-white/60 leading-relaxed max-w-xl mx-auto">
-                        Your central hub for managing content, meditation programs, and community engagement.
-                    </p>
-                </div>
-
-                {/* Decorative Elements */}
-                <div className="absolute bottom-10 left-10 right-10 flex justify-between text-white/20 text-xs font-bold uppercase tracking-[0.3em]">
-                    <span>Meditation Centre CMS</span>
-                    <span>v2.0.4</span>
-                    <span>Internal Use Only</span>
                 </div>
             </div>
         </div>
