@@ -20,6 +20,7 @@ import CreateMembership from "./pages/CreateMembership";
 import EditMembership from "./pages/EditMembership";
 import ForgotPassword from "./pages/ForgotPassword";
 import Settings from "./pages/Settings";
+import Events from "./pages/Events";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const user = localStorage.getItem("user");
@@ -84,6 +85,7 @@ function App() {
           <Route path="/memberships/edit/:id" element={<EditMembership />} />
           <Route path="/memberships/applications" element={<MembershipApplications />} />
 
+          <Route path="/events" element={<Events />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 

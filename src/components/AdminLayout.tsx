@@ -8,7 +8,8 @@ import {
     LogOut,
     Settings,
     Mail,
-    CreditCard
+    CreditCard,
+    CalendarHeart
 } from "lucide-react";
 import { clearSession } from "../lib/session";
 import { useSettings } from "../lib/settings";
@@ -50,6 +51,7 @@ export default function AdminLayout({
         { label: "Memberships", icon: CreditCard, path: "/memberships" },
         { label: "Enquiries", icon: Mail, path: "/enquiries" },
         { label: "Website", icon: Layers, path: "/cms/pages" },
+        { label: "Events", icon: CalendarHeart, path: "/events" },
         { label: "Settings", icon: Settings, path: "/settings" },
     ];
 

@@ -25,6 +25,27 @@ export interface AppSettings {
     notify_membership_application: boolean;
     notify_participant: boolean;
     notification_poll_seconds: number;
+    event_grand_meditation_enabled: boolean;
+    event_announcement_enabled: boolean;
+    event_grand_meditation_content: GrandMeditationContent | null;
+}
+
+export interface EventMaster {
+    name: string;
+    image: string | null;
+}
+
+export interface GrandMeditationContent {
+    guru_name: string;
+    guru_image: string | null;
+    masters: EventMaster[];
+    /** Local wall-time "YYYY-MM-DDTHH:MM" in the venue's timezone (SGT). */
+    starts_at: string;
+    duration_hours: number;
+    venue_name: string;
+    venue_subtitle: string;
+    venue_address: string;
+    announcement_text: string;
 }
 
 /**
@@ -48,6 +69,26 @@ export const FALLBACK_SETTINGS: AppSettings = {
     notify_membership_application: true,
     notify_participant: true,
     notification_poll_seconds: 60,
+    event_grand_meditation_enabled: true,
+    event_announcement_enabled: true,
+    event_grand_meditation_content: null,
+};
+
+/** Defaults shown in the Events editor before anything is customised. */
+export const DEFAULT_GRAND_MEDITATION_CONTENT: GrandMeditationContent = {
+    guru_name: "Gnanaguru Paranjothi Subramaniam",
+    guru_image: null,
+    masters: [
+        { name: "Dr William Brugh Joy", image: null },
+        { name: "Gnanavallal Paranjothi Mahan", image: null },
+        { name: "Gnanaguru Paranjothi Sivasankaran", image: null },
+    ],
+    starts_at: "2027-01-09T15:00",
+    duration_hours: 3,
+    venue_name: "Kensington Ballroom",
+    venue_subtitle: "Serangoon Gardens Country Club",
+    venue_address: "22 Kensington Park Road, Singapore 557271",
+    announcement_text: "Grand Group Meditation with our Guru · 9 January 2027 · Kensington Ballroom, Serangoon Gardens Country Club",
 };
 
 interface SettingsContextValue {
