@@ -4,6 +4,7 @@ import { api, API_URL } from "../lib/api";
 import {
     useSettings,
     DEFAULT_GRAND_MEDITATION_CONTENT,
+    isGrandMeditationExpired,
     type GrandMeditationContent,
 } from "../lib/settings";
 import Toast, { type ToastState } from "../components/Toast";
@@ -157,6 +158,11 @@ export default function Events() {
     const inputClass =
         "w-full px-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50/60 focus:bg-white focus:ring-4 focus:ring-[#101848]/5 focus:border-[#101848] outline-none transition-all text-sm";
 
+    // The event auto-hides from the website 3 days after it ends, whatever the
+    // toggle says — reflect that here so the panel matches the live site.
+    const expired = isGrandMeditationExpired(content);
+    const effectiveLive = enabled && !expired;
+
     return (
         <div className="max-w-4xl mx-auto">
             {/* Header */}
@@ -179,14 +185,19 @@ export default function Events() {
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-lg font-bold text-black">Grand Group Meditation with our Guru</h2>
-                            <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${enabled ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"}`}>
-                                {enabled ? "Live" : "Disabled"}
+                            <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${expired ? "bg-amber-50 text-amber-600" : effectiveLive ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"}`}>
+                                {expired ? "Auto-hidden" : effectiveLive ? "Live" : "Disabled"}
                             </span>
                         </div>
                         <p className="text-sm text-gray-500 mt-1.5">
                             Remembrance Day of our Spiritual Masters · 9 January 2027 · Serangoon Gardens Country Club, Singapore.
                         </p>
-                        {enabled && (
+                        {expired && (
+                            <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                This event ended more than 3 days ago, so it is automatically hidden from the website and the Events menu — regardless of the toggle. Update the date below to bring it back.
+                            </p>
+                        )}
+                        {effectiveLive && (
                             <a href={`${SITE_URL}${EVENT_PATH}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#101848] hover:underline mt-3">
                                 <ExternalLink className="w-3.5 h-3.5" /> Preview live page
                             </a>
