@@ -36,6 +36,21 @@ export interface HomeVideos {
     tiktok: string[];
 }
 
+/** Epoch ms when the event auto-hides: 3 days after it ends. starts_at is SGT (UTC+8). */
+export function grandMeditationDisabledAt(c: { starts_at?: string; duration_hours?: number }): number {
+    const [d, t] = (c?.starts_at || "2027-01-09T15:00").split("T");
+    const [y, mo, da] = (d || "2027-01-09").split("-").map(Number);
+    const [h, mi] = (t || "15:00").split(":").map(Number);
+    const startUTC = Date.UTC(y, mo - 1, da, (h || 0) - 8, mi || 0);
+    const dur = Number(c?.duration_hours) > 0 ? Number(c?.duration_hours) : 3;
+    return startUTC + (dur + 72) * 3600 * 1000;
+}
+
+/** True once the event has been over for more than 3 days. */
+export function isGrandMeditationExpired(c: { starts_at?: string; duration_hours?: number }): boolean {
+    return Date.now() > grandMeditationDisabledAt(c);
+}
+
 export interface EventMaster {
     name: string;
     image: string | null;
