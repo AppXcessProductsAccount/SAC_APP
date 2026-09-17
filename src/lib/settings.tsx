@@ -54,11 +54,15 @@ export function isGrandMeditationExpired(c: { starts_at?: string; duration_hours
 export interface EventMaster {
     name: string;
     image: string | null;
+    fit?: string;
+    pos?: string;
 }
 
 export interface GrandMeditationContent {
     guru_name: string;
     guru_image: string | null;
+    guru_fit?: string;
+    guru_pos?: string;
     masters: EventMaster[];
     /** Local wall-time "YYYY-MM-DDTHH:MM" in the venue's timezone (SGT). */
     starts_at: string;
