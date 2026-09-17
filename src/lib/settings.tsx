@@ -28,6 +28,12 @@ export interface AppSettings {
     event_grand_meditation_enabled: boolean;
     event_announcement_enabled: boolean;
     event_grand_meditation_content: GrandMeditationContent | null;
+    home_videos: HomeVideos | null;
+}
+
+export interface HomeVideos {
+    youtube: string[];
+    tiktok: string[];
 }
 
 export interface EventMaster {
@@ -72,6 +78,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
     event_grand_meditation_enabled: true,
     event_announcement_enabled: true,
     event_grand_meditation_content: null,
+    home_videos: null,
 };
 
 /** Defaults shown in the Events editor before anything is customised. */

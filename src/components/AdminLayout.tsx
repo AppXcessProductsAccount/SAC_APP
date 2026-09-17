@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     LayoutDashboard,
     Users,
@@ -9,7 +10,8 @@ import {
     Settings,
     Mail,
     CreditCard,
-    CalendarHeart
+    CalendarHeart,
+    PlaySquare
 } from "lucide-react";
 import { clearSession } from "../lib/session";
 import { useSettings } from "../lib/settings";
@@ -51,12 +53,13 @@ export default function AdminLayout({
         { label: "Memberships", icon: CreditCard, path: "/memberships" },
         { label: "Enquiries", icon: Mail, path: "/enquiries" },
         { label: "Website", icon: Layers, path: "/cms/pages" },
+        { label: "Home Videos", icon: PlaySquare, path: "/home-videos" },
         { label: "Events", icon: CalendarHeart, path: "/events" },
         { label: "Settings", icon: Settings, path: "/settings" },
     ];
 
     return (
-        <div className="flex min-h-screen bg-[#F7F7F7]">
+        <div className="flex min-h-screen">
             {/* Sidebar */}
             <aside className="w-64 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col sticky top-0 h-screen z-20">
                 <div className="p-8 pb-4">
@@ -91,13 +94,21 @@ export default function AdminLayout({
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-bold group ${isActive
-                                        ? "bg-gray-100 text-black shadow-sm"
-                                        : "text-gray-600 hover:bg-gray-50 hover:text-black"
+                                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-bold group ${isActive
+                                        ? "text-[#101848]"
+                                        : "text-gray-500 hover:bg-gray-50 hover:text-[#101848]"
                                     }`}
                             >
-                                <Icon className={`w-5 h-5 ${isActive ? "text-black" : "text-black/70 group-hover:text-black"}`} />
-                                {item.label}
+                                {/* The active pill slides between items via a shared layoutId. */}
+                                {isActive && (
+                                    <motion.span
+                                        layoutId="sidebar-active"
+                                        className="absolute inset-0 rounded-xl bg-[#101848]/8 ring-1 ring-[#101848]/10"
+                                        transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                                    />
+                                )}
+                                <Icon className={`relative w-5 h-5 ${isActive ? "text-[#C9A227]" : "text-gray-400 group-hover:text-[#101848]"}`} />
+                                <span className="relative">{item.label}</span>
                             </Link>
                         );
                     })}
@@ -154,7 +165,18 @@ export default function AdminLayout({
 
                 <main className="p-12">
                     <div className="max-w-7xl mx-auto">
-                        {children}
+                        {/* Each route fades and lifts in on navigation. */}
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={pathname}
+                                initial={{ opacity: 0, y: 14 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                            >
+                                {children}
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
                 </main>
             </div>
