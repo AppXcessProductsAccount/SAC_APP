@@ -19,16 +19,38 @@ const resolveImg = (url: string | null): string => {
     return `${API_URL}${url}`;
 };
 
-/** One image slot with upload + preview, used for the Guru and each master. */
+/** The nine object-position values, laid out as a 3×3 grid. */
+const POSITIONS = [
+    "left top", "center top", "right top",
+    "left center", "center", "right center",
+    "left bottom", "center bottom", "right bottom",
+];
+
+/**
+ * One image slot with upload, live preview, and adjustment controls.
+ *
+ * Supports images of any size: pick Fit (Cover fills the frame and may crop;
+ * Contain shows the whole image) and a focal point (the 3×3 grid) so the right
+ * part stays visible when cropping. The preview reflects the choices live, and
+ * the same fit/position are applied on the website.
+ */
 function ImageSlot({
     label,
     value,
+    fit = "cover",
+    pos = "center",
     onChange,
+    onFit,
+    onPos,
     rounded = "rounded-2xl",
 }: {
     label: string;
     value: string | null;
+    fit?: string;
+    pos?: string;
     onChange: (url: string | null) => void;
+    onFit?: (fit: string) => void;
+    onPos?: (pos: string) => void;
     rounded?: string;
 }) {
     const [uploading, setUploading] = useState(false);
@@ -50,28 +72,60 @@ function ImageSlot({
     };
 
     return (
-        <div className="flex flex-col items-center gap-2">
-            <div className={`relative w-24 h-24 ${rounded} overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center`}>
-                {src ? (
-                    <img src={src} alt={label} className="w-full h-full object-cover" />
-                ) : (
-                    <User className="w-8 h-8 text-gray-300" />
-                )}
-                {uploading && (
-                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 text-[#101848] animate-spin" />
-                    </div>
+        <div className="flex gap-4 items-start">
+            <div className="flex flex-col items-center gap-2">
+                <div className={`relative w-28 h-28 ${rounded} overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center`}>
+                    {src ? (
+                        <img src={src} alt={label} className="w-full h-full" style={{ objectFit: fit as any, objectPosition: pos }} />
+                    ) : (
+                        <User className="w-8 h-8 text-gray-300" />
+                    )}
+                    {uploading && (
+                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                            <Loader2 className="w-5 h-5 text-[#101848] animate-spin" />
+                        </div>
+                    )}
+                </div>
+                <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#101848] cursor-pointer hover:underline">
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    {value ? "Change" : "Upload"}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+                </label>
+                {value && (
+                    <button type="button" onClick={() => onChange(null)} className="text-[11px] text-gray-400 hover:text-red-500">
+                        Remove
+                    </button>
                 )}
             </div>
-            <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#101848] cursor-pointer hover:underline">
-                <ImagePlus className="w-3.5 h-3.5" />
-                {value ? "Change" : "Upload"}
-                <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
-            </label>
-            {value && (
-                <button type="button" onClick={() => onChange(null)} className="text-[11px] text-gray-400 hover:text-red-500">
-                    Remove
-                </button>
+
+            {/* Adjustment controls — only once an image exists */}
+            {value && (onFit || onPos) && (
+                <div className="pt-1">
+                    {onFit && (
+                        <>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Fit</p>
+                            <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden mb-3">
+                                {["cover", "contain"].map((f) => (
+                                    <button key={f} type="button" onClick={() => onFit(f)}
+                                        className={`px-3 py-1 text-xs font-semibold capitalize transition-colors ${fit === f ? "bg-[#101848] text-white" : "bg-white text-gray-500 hover:text-[#101848]"}`}>
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                    {onPos && (
+                        <>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Focus point</p>
+                            <div className="grid grid-cols-3 gap-1 w-[4.75rem]">
+                                {POSITIONS.map((p) => (
+                                    <button key={p} type="button" title={p} onClick={() => onPos(p)}
+                                        className={`w-5 h-5 rounded-sm border transition-colors ${pos === p ? "bg-[#C9A227] border-[#C9A227]" : "bg-gray-100 border-gray-200 hover:border-[#101848]"}`} />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
             )}
         </div>
     );
@@ -98,9 +152,13 @@ export default function Events() {
         setContent({
             guru_name: stored?.guru_name || base.guru_name,
             guru_image: stored?.guru_image ?? base.guru_image,
+            guru_fit: stored?.guru_fit || "cover",
+            guru_pos: stored?.guru_pos || "center",
             masters: base.masters.map((def, i) => ({
                 name: stored?.masters?.[i]?.name || def.name,
                 image: stored?.masters?.[i]?.image ?? def.image,
+                fit: stored?.masters?.[i]?.fit || "cover",
+                pos: stored?.masters?.[i]?.pos || "center",
             })),
             starts_at: stored?.starts_at || base.starts_at,
             duration_hours: stored?.duration_hours || base.duration_hours,
@@ -279,7 +337,16 @@ export default function Events() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Our Guru</h3>
                 <div className="flex flex-col sm:flex-row gap-6 items-start">
-                    <ImageSlot label="Guru" value={content.guru_image} rounded="rounded-full" onChange={(url) => setContent((c) => ({ ...c, guru_image: url }))} />
+                    <ImageSlot
+                        label="Guru"
+                        value={content.guru_image}
+                        fit={content.guru_fit}
+                        pos={content.guru_pos}
+                        rounded="rounded-full"
+                        onChange={(url) => setContent((c) => ({ ...c, guru_image: url }))}
+                        onFit={(f) => setContent((c) => ({ ...c, guru_fit: f }))}
+                        onPos={(p) => setContent((c) => ({ ...c, guru_pos: p }))}
+                    />
                     <div className="flex-1 w-full">
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Guru name</label>
                         <input className={inputClass} value={content.guru_name} onChange={(e) => setContent((c) => ({ ...c, guru_name: e.target.value }))} placeholder="Guru name" />
@@ -295,7 +362,15 @@ export default function Events() {
                 <div className="space-y-5">
                     {content.masters.map((m, i) => (
                         <div key={i} className="flex flex-col sm:flex-row gap-5 items-start sm:items-center pb-5 last:pb-0 border-b last:border-0 border-gray-50">
-                            <ImageSlot label={`Master ${i + 1}`} value={m.image} onChange={(url) => setMaster(i, { image: url })} />
+                            <ImageSlot
+                                label={`Master ${i + 1}`}
+                                value={m.image}
+                                fit={m.fit}
+                                pos={m.pos}
+                                onChange={(url) => setMaster(i, { image: url })}
+                                onFit={(f) => setMaster(i, { fit: f })}
+                                onPos={(p) => setMaster(i, { pos: p })}
+                            />
                             <div className="flex-1 w-full">
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Master {i + 1} name</label>
                                 <input className={inputClass} value={m.name} onChange={(e) => setMaster(i, { name: e.target.value })} placeholder={`Master ${i + 1} name`} />
