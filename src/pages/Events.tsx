@@ -19,6 +19,47 @@ const resolveImg = (url: string | null): string => {
     return `${API_URL}${url}`;
 };
 
+/**
+ * Downscale + compress an image in the browser before upload.
+ *
+ * The origin proxy rejects request bodies over ~1 MB (413), and phone photos are
+ * several MB. Resizing to a sensible max edge and re-encoding as JPEG keeps every
+ * upload comfortably under that, and is faster to load on the site too. Small
+ * images are left untouched.
+ */
+async function downscaleImage(file: File, maxDim = 1600, quality = 0.85): Promise<File> {
+    if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") return file;
+    try {
+        const dataUrl: string = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+        const img: HTMLImageElement = await new Promise((res, rej) => {
+            const im = new Image();
+            im.onload = () => res(im);
+            im.onerror = rej;
+            im.src = dataUrl;
+        });
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        if (scale === 1 && file.size < 900 * 1024) return file; // already small enough
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return file;
+        ctx.drawImage(img, 0, 0, w, h);
+        const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+        if (!blob || blob.size >= file.size) return file; // no gain
+        return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+    } catch {
+        return file; // on any failure, upload the original
+    }
+}
+
 /** The nine object-position values, laid out as a 3×3 grid. */
 const POSITIONS = [
     "left top", "center top", "right top",
@@ -61,7 +102,8 @@ function ImageSlot({
         if (!file) return;
         setUploading(true);
         try {
-            const data = await api.upload(file);
+            const prepared = await downscaleImage(file);
+            const data = await api.upload(prepared);
             onChange(data.url);
         } catch {
             alert("Image upload failed.");
